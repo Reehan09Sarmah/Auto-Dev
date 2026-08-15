@@ -1,0 +1,23 @@
+# Secrets
+.env
+
+# Virtual Environment
+autodevenv/
+
+# Internal planning files
+implementation_plan.md
+progress.md
+
+# Python cache files (auto-generated, never commit these)
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
