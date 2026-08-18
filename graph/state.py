@@ -1,4 +1,5 @@
-from typing import TypedDict
+from typing import TypedDict, Annotated
+import operator
 
 class AgentState(TypedDict):
     task: str
@@ -8,3 +9,7 @@ class AgentState(TypedDict):
     error: str
     retry_count: int
     status: str
+    observe: Annotated[dict, operator.ior]
+
+
+

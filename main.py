@@ -34,7 +34,8 @@ def main():
             "test_results":"",
             "error": "",
             "retry_count":0,
-            "status": "running"
+            "status": "running",
+            "observe": {}
         }
 
         end_state = graph.invoke(start_state)
@@ -78,6 +79,27 @@ def main():
             print(end_state["code"])
 
         print()
+
+        # Observability Display 
+        obs = end_state.get("observe", {})
+        coder_t = obs.get("coder_time", 0)
+        coder_tok = obs.get("coder_tokens", 0)
+        tester_t = obs.get("tester_time", 0)
+        tester_tok = obs.get("tester_tokens", 0)
+        
+        total_time = coder_t + tester_t
+        total_tokens = coder_tok + tester_tok
+
+        print("╔" + "═" * 58 + "╗")
+        print("║" + "LLM Trace".center(58) + "║")
+        print("╠" + "═" * 58 + "╣")
+        print(f"║  Coder Agent:  {coder_t}s | {coder_tok} tokens".ljust(59) + "║")
+        print(f"║  Tester Agent: {tester_t}s | {tester_tok} tokens".ljust(59) + "║")
+        print(f"║  Retries:      {end_state['retry_count']}".ljust(59) + "║")
+        print("╠" + "═" * 58 + "╣")
+        print(f"║  TOTAL:        {total_time}s | {total_tokens} tokens".ljust(59) + "║")
+        print("╚" + "═" * 58 + "╝")
+
 
 
 if __name__ == "__main__":

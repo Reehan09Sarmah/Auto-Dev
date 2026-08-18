@@ -6,12 +6,12 @@ import sys
 def execute_code_tests(code:str, tests:str) -> dict:
     with tempfile.TemporaryDirectory() as tmpdir:
         code_path = os.path.join(tmpdir, "solution.py")
-        with open(code_path, "w") as f:
+        with open(code_path, "w", encoding="utf-8") as f:
             f.write(code)
 
         # now the tests
         test_path = os.path.join(tmpdir, 'tests_sol.py')
-        with open(test_path, "w") as f:
+        with open(test_path, "w", encoding="utf-8") as f:
             f.write(tests)
 
         # run the tests on the solution using pytest | -v = verbose | --tb=short : short error tracebacks

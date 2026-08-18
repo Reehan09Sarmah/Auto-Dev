@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from graph.state import AgentState
 from tools.executor import execute_code_tests
 from tools.scanner import scan_code
+import time
 
 load_dotenv()
 
@@ -53,7 +54,7 @@ def coder_node(state: AgentState) -> dict:
 
     error_context = ""
     if state['error']: # this is for retry
-        error_context = f"\nYour previous code FAILED. Fix the code based on the ERROR:\n{state["error"]}\n. Preserve original task requirements"
+        error_context = f"\nYour previous code FAILED. Fix the code based on the ERROR:\n{state['error']}\n. Preserve original task requirements"
 
     system_msg = (
         "You are an Expert Python Developer. "
@@ -71,11 +72,20 @@ def coder_node(state: AgentState) -> dict:
         HumanMessage(content=human_msg)
     ]
 
+    start = time.time()
     response = call_llm(messages)
-    code = convtorawdata(response.content)
-    print(f"Generated {len(code.splitlines())} lines of code")
+    latency = round(time.time() - start)
 
-    return {"code" : code, "status": "running"}
+    tokens = response.usage_metadata.get("total_tokens", 0) if hasattr(response, 'usage_metadata') and response.usage_metadata else 0
+    code = convtorawdata(response.content)
+    print(f"Generated {len(code.splitlines())} lines of code in {latency}s ({tokens} tokens)")
+
+
+    current_obs = state.get("observe", {})
+    current_obs["coder_time"] = current_obs.get("coder_time", 0) + latency
+    current_obs["coder_tokens"] = current_obs.get("coder_tokens", 0) + tokens
+
+    return {"code" : code, "status": "running", "observe": current_obs}
 
 
 
@@ -101,11 +111,19 @@ def tester_node(state: AgentState) -> dict:
         HumanMessage(content=human_msg)
     ]
 
+    start = time.time()
     response = call_llm(messages)
-    tests = convtorawdata(response.content)
-    print(f"Generated {len(tests.splitlines())} lines of tests")
+    latency = round(time.time() - start)
 
-    return {"tests" : tests}
+    tokens = response.usage_metadata.get("total_tokens", 0) if hasattr(response, 'usage_metadata') and response.usage_metadata else 0
+    tests = convtorawdata(response.content)
+    print(f"Generated {len(tests.splitlines())} lines of tests in {latency}s ({tokens} tokens)")
+
+    current_obs = state.get("observe", {})
+    current_obs["tester_time"] = current_obs.get("tester_time", 0) + latency
+    current_obs["tester_tokens"] = current_obs.get("tester_tokens", 0) + tokens
+
+    return {"tests" : tests, "observe": current_obs}
 
 
 
@@ -119,6 +137,15 @@ def scanner_node(state:AgentState) -> dict:
         print("Code passed security scan. Sending it to execute")
         return {"status": "running"}
     else:
+        new_count = state['retry_count'] + 1
+        if new_count >= 3:
+            print("  Max retries reached due to security violations!")
+            return {
+                "error": error_msg,
+                "retry_count": new_count,
+                "status": "escalate",
+            }
+            
         issues_list = "\n".join(result['issues'])
         print(f"  SECURITY ISSUES FOUND:\n {issues_list}")
         error_msg = (
@@ -126,7 +153,7 @@ def scanner_node(state:AgentState) -> dict:
             f"{issues_list}\n\n"
             f"Rewrite the code to accomplish the task WITHOUT using these dangerous functions."
         )
-        return {"error": error_msg, "status": "security_fail"}
+        return {"error": error_msg, "status": "security_fail", "retry_count": new_count}
 
 
 
