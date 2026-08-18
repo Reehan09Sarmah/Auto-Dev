@@ -4,6 +4,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from graph.state import AgentState
 from tools.executor import execute_code_tests
+from tools.scanner import scan_code
 
 load_dotenv()
 
@@ -105,6 +106,28 @@ def tester_node(state: AgentState) -> dict:
     print(f"Generated {len(tests.splitlines())} lines of tests")
 
     return {"tests" : tests}
+
+
+
+# Scanner Node
+def scanner_node(state:AgentState) -> dict:
+    print("--- Scanner Node Running ---")
+
+    result = scan_code(state['code'])
+
+    if result["safe"]:
+        print("Code passed security scan. Sending it to execute")
+        return {"status": "running"}
+    else:
+        issues_list = "\n".join(result['issues'])
+        print(f"  SECURITY ISSUES FOUND:\n {issues_list}")
+        error_msg = (
+            f"SECURITY VIOLATION - Your code contains dangerous patterns:\n"
+            f"{issues_list}\n\n"
+            f"Rewrite the code to accomplish the task WITHOUT using these dangerous functions."
+        )
+        return {"error": error_msg, "status": "security_fail"}
+
 
 
 

@@ -65,6 +65,18 @@ def main():
             print("-" * 60)
             print(end_state["error"])
 
+        elif end_state["status"] == "security_fail":
+            print("║" + "SECURITY BLOCK".center(58) + "║")
+            print("╠" + "═" * 58 + "╣")
+            print("║  Code was blocked by the security scanner.       ║")
+            print("╚" + "═" * 58 + "╝")
+            print("\nSecurity issues found:")
+            print("-" * 60)
+            print(end_state["error"])
+            print("\nLast code attempt:")
+            print("-" * 60)
+            print(end_state["code"])
+
         print()
 
 
