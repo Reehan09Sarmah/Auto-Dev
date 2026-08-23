@@ -47,6 +47,12 @@ def convtorawdata(text: str) -> str:
     return text.strip()
 
 
+def load_prompt(agent_name: str) -> str:
+    prompt_path = os.path.join(os.path.dirname(__file__), "..", "prompts", f"{agent_name}.md")
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
 
 # Coder
 def coder_node(state: AgentState) -> dict:
@@ -56,13 +62,7 @@ def coder_node(state: AgentState) -> dict:
     if state['error']: # this is for retry
         error_context = f"\nYour previous code FAILED. Fix the code based on the ERROR:\n{state['error']}\n. Preserve original task requirements"
 
-    system_msg = (
-        "You are an Expert Python Developer. "
-        "Write clean, corect and executable python code. "
-        "Follow the user's task and requirements exactly. "
-        "Return only RAW Python code. "
-        "No markdown fences. Strictly No Explanation. "
-    )
+    system_msg = load_prompt("coder")
 
     human_msg = f"Task:\n{state['task']}\n{error_context}"
     
@@ -94,14 +94,7 @@ def tester_node(state: AgentState) -> dict:
     print(f"--- TESTER AGENT RUNNING ---")
 
 
-    system_msg = (
-        "You are an Expert Python Test Engineer. "
-        "Write clean, corect pytest tests for the given python code. "
-        "Import functions and classes from 'solution.py'. "
-        "Cover normal cases, edge cases, and important failure cases. "
-        "Return ONLY raw pytest code. "
-        "No markdown fences. Strictly No explanations."
-    )
+    system_msg = load_prompt("tester")
 
     human_msg = f"Write pytest test for: \n{state['code']}"
     

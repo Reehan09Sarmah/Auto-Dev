@@ -45,12 +45,12 @@ def main():
         print("╔" + "═" * 58 + "╗")
 
         if end_state["status"] == "pass":
-            print("║" + "BUILD SUCCESSFUL".center(58) + "║")
-            print("╠" + "═" * 58 + "╣")
-            print("║  end code:" + " " * 45 + "║")
-            print("╚" + "═" * 58 + "╝")
-            print()
+            print("BUILD SUCCESSFUL\n")
+            print("Final Code:")
+            print("-" * 60)
             print(end_state["code"])
+            print("-" * 60)
+
 
         elif end_state["status"] == "escalate":
             print("║" + "ESCALATION REQUIRED".center(58) + "║")
