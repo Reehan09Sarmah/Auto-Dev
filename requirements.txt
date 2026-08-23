@@ -1,16 +1,17 @@
-# ============================================================
-# AutoDev-Frontier — Dependencies
-# ============================================================
+﻿# AutoDev-Frontier Dependencies
+# Install with: pip install -r requirements.txt
 
-# --- Phase 1: Core Agentic Loop ---
-langgraph>=0.2.0             # The graph engine for stateful multi-agent workflows
-langchain-core>=0.2.0        # Base abstractions (prompts, messages, runnables)
-langchain-google-genai>=1.0.0 # LangChain connector for Google Gemini
-google-generativeai>=0.7.0   # Underlying Gemini SDK
-pydantic>=2.0.0              # Structured output schemas / data validation
-python-dotenv>=1.0.0         # Load API keys from .env file
+# Core agent framework
+langgraph==1.2.11
+langchain-core==1.5.5
 
-# --- Phase 2: RAG & Observability (install later) ---
-# chromadb>=0.5.0            # Local vector database for RAG
-# langchain-community>=0.2.0 # Document loaders, text splitters
-# langsmith>=0.1.0           # LLMOps: visual tracing dashboard
+# LLM provider
+langchain-google-genai==4.3.4
+google-genai==2.18.1
+google-generativeai==0.8.6
+
+# Vector database (RAG / Semantic Memory)
+pinecone==9.1.0
+
+# Environment management
+python-dotenv==1.2.2

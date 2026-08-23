@@ -1,0 +1,47 @@
+﻿MODULE: json
+DESCRIPTION: JSON encoding and decoding for Python data structures.
+
+---
+FUNCTION: json.loads(s)
+PURPOSE: Parse JSON string into Python object.
+IMPORT: import json
+EXAMPLE:
+  data = json.loads('{"name": "Alice", "age": 30}')
+  # {'name': 'Alice', 'age': 30}
+  data['name']  # 'Alice'
+
+---
+FUNCTION: json.dumps(obj, indent=None)
+PURPOSE: Convert Python object to JSON string.
+IMPORT: import json
+EXAMPLE:
+  record = {"name": "Alice", "scores": [95, 87, 92]}
+  print(json.dumps(record, indent=2))
+  # {
+  #   "name": "Alice",
+  #   "scores": [95, 87, 92]
+  # }
+
+---
+FUNCTION: json.load(fp)
+PURPOSE: Read JSON from file object.
+IMPORT: import json
+EXAMPLE:
+  with open("data.json", "r", encoding="utf-8") as f:
+      data = json.load(f)
+
+---
+FUNCTION: json.dump(obj, fp, indent=None)
+PURPOSE: Write Python object as JSON to file.
+IMPORT: import json
+EXAMPLE:
+  with open("output.json", "w", encoding="utf-8") as f:
+      json.dump(data, f, indent=2)
+
+TYPE MAPPING:
+  Python dict   -> JSON object {}
+  Python list   -> JSON array []
+  Python str    -> JSON string ""
+  Python int/float -> JSON number
+  Python True/False -> JSON true/false
+  Python None   -> JSON null

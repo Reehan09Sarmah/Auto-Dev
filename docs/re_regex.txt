@@ -1,0 +1,45 @@
+﻿MODULE: re
+DESCRIPTION: Regular expression operations for pattern matching and text processing.
+
+---
+FUNCTION: re.search(pattern, string)
+PURPOSE: Scan through string looking for first match. Returns Match object or None.
+IMPORT: import re
+EXAMPLE:
+  match = re.search(r'\d+', 'Order #12345')
+  if match:
+      print(match.group())  # '12345'
+      print(match.start())  # position index
+
+---
+FUNCTION: re.findall(pattern, string)
+PURPOSE: Return all non-overlapping matches as list of strings.
+IMPORT: import re
+EXAMPLE:
+  emails = re.findall(r'[\w.]+@[\w.]+', 'Send to alice@example.com and bob@test.org')
+  # ['alice@example.com', 'bob@test.org']
+
+---
+FUNCTION: re.sub(pattern, repl, string)
+PURPOSE: Replace all occurrences of pattern with repl.
+IMPORT: import re
+EXAMPLE:
+  clean = re.sub(r'\s+', ' ', 'too   many    spaces')  # 'too many spaces'
+  masked = re.sub(r'\d{4}', '****', '4111 1111 1111 1234')  # '****  **** **** ****'
+
+---
+FUNCTION: re.compile(pattern)
+PURPOSE: Pre-compile a pattern for reuse -- faster when using same pattern many times.
+IMPORT: import re
+EXAMPLE:
+  phone = re.compile(r'\+?\d[\d\s\-]{8,}\d')
+  results = phone.findall(text)
+
+---
+COMMON PATTERNS:
+  r'\d+'          one or more digits
+  r'\w+'          word characters (letters, digits, underscore)
+  r'[A-Za-z]+'   only letters
+  r'^...$'        match entire string from start to end
+  r'(?i)...'      case-insensitive flag
+  r'(?:...)'      non-capturing group

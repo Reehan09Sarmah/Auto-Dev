@@ -131,14 +131,6 @@ def scanner_node(state:AgentState) -> dict:
         return {"status": "running"}
     else:
         new_count = state['retry_count'] + 1
-        if new_count >= 3:
-            print("  Max retries reached due to security violations!")
-            return {
-                "error": error_msg,
-                "retry_count": new_count,
-                "status": "escalate",
-            }
-            
         issues_list = "\n".join(result['issues'])
         print(f"  SECURITY ISSUES FOUND:\n {issues_list}")
         error_msg = (
@@ -146,6 +138,14 @@ def scanner_node(state:AgentState) -> dict:
             f"{issues_list}\n\n"
             f"Rewrite the code to accomplish the task WITHOUT using these dangerous functions."
         )
+
+        if new_count >= 3:
+            print("  Max retries reached due to security violations!")
+            return {
+                "error": error_msg,
+                "retry_count": new_count,
+                "status": "escalate",
+            }
         return {"error": error_msg, "status": "security_fail", "retry_count": new_count}
 
 

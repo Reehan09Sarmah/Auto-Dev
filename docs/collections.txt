@@ -1,0 +1,58 @@
+﻿MODULE: collections
+DESCRIPTION: High-performance container datatypes. Always prefer these over manual dict/list patterns.
+
+---
+CLASS: collections.Counter(iterable)
+PURPOSE: Count occurrences of elements. Returns dict-like object with elements as keys and counts as values.
+IMPORT: from collections import Counter
+
+EXAMPLE:
+  words = ["apple", "banana", "apple", "cherry", "banana", "apple"]
+  count = Counter(words)
+  # Counter({'apple': 3, 'banana': 2, 'cherry': 1})
+  count.most_common(2)
+  # [('apple', 3), ('banana', 2)]
+
+USE WHEN: counting word frequency, finding most common elements, tallying votes.
+AVOID: manually writing {word: words.count(word) for word in words} -- Counter is faster.
+
+---
+CLASS: collections.defaultdict(default_factory)
+PURPOSE: dict subclass that never raises KeyError. Provides default value for missing keys.
+IMPORT: from collections import defaultdict
+
+EXAMPLE:
+  groups = defaultdict(list)
+  for name, dept in [("Alice", "Eng"), ("Bob", "HR"), ("Carol", "Eng")]:
+      groups[dept].append(name)
+  # {'Eng': ['Alice', 'Carol'], 'HR': ['Bob']}
+
+USE WHEN: grouping items, building adjacency lists, accumulating values by key.
+AVOID: checking if key exists before appending -- defaultdict handles it automatically.
+
+---
+CLASS: collections.deque(iterable, maxlen=None)
+PURPOSE: Double-ended queue. O(1) append and pop from both ends (list.pop(0) is O(n)).
+IMPORT: from collections import deque
+
+EXAMPLE:
+  q = deque([1, 2, 3], maxlen=3)
+  q.append(4)       # deque([2, 3, 4]) -- oldest dropped automatically
+  q.appendleft(0)   # deque([0, 2, 3])
+  q.popleft()       # 0, queue is now deque([2, 3])
+
+USE WHEN: sliding window problems, BFS queues, fixed-size history buffers.
+AVOID: using list as a queue with pop(0) -- it is O(n) and will be slow on large data.
+
+---
+CLASS: collections.namedtuple(typename, field_names)
+PURPOSE: Tuple subclass with named fields. Readable, memory-efficient alternative to small classes.
+IMPORT: from collections import namedtuple
+
+EXAMPLE:
+  Point = namedtuple('Point', ['x', 'y'])
+  p = Point(3, 4)
+  print(p.x, p.y)    # 3 4
+  print(p)           # Point(x=3, y=4)
+
+USE WHEN: returning multiple values from functions with named access, representing simple records.

@@ -1,0 +1,47 @@
+﻿MODULE: os and pathlib
+DESCRIPTION: File system interaction. Prefer pathlib for new code -- more readable than os.path.
+
+---
+FUNCTION: os.listdir(path)
+PURPOSE: Returns list of filenames in directory. Does NOT include . and ..
+IMPORT: import os
+EXAMPLE:
+  files = os.listdir(".")   # ['main.py', 'requirements.txt', ...]
+
+---
+FUNCTION: os.path.join(path, *paths)
+PURPOSE: Join path components. Handles OS separators automatically.
+IMPORT: import os
+EXAMPLE:
+  os.path.join("data", "input", "file.txt")  # 'data/input/file.txt'
+
+---
+FUNCTION: os.path.exists(path)
+PURPOSE: Returns True if path exists, False otherwise.
+IMPORT: import os
+EXAMPLE:
+  if os.path.exists("config.json"):
+      with open("config.json") as f: ...
+
+---
+FUNCTION: os.makedirs(path, exist_ok=False)
+PURPOSE: Create directories recursively. exist_ok=True prevents error if already exists.
+IMPORT: import os
+EXAMPLE:
+  os.makedirs("data/output/results", exist_ok=True)
+
+---
+CLASS: pathlib.Path(path)
+PURPOSE: Object-oriented file system paths. Cleaner than os.path for most operations.
+IMPORT: from pathlib import Path
+
+EXAMPLE:
+  p = Path("data/input")
+  p.mkdir(parents=True, exist_ok=True)
+  for f in p.glob("*.txt"):
+      print(f.name, f.read_text(encoding='utf-8'))
+  (p / "output.txt").write_text("hello", encoding='utf-8')
+  p.exists()     # True/False
+  p.is_file()    # True/False
+  p.stem         # filename without extension
+  p.suffix       # file extension e.g. '.txt'
