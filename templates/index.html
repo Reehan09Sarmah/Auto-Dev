@@ -1,0 +1,489 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoDev</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #09090b;
+            color: #e4e4e7;
+            font-family: 'JetBrains Mono', monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Top Bar ── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            padding: 14px 24px;
+            border-bottom: 1px solid #1c1c22;
+            flex-shrink: 0;
+        }
+        .topbar .dots { display: flex; gap: 6px; margin-right: 16px; }
+        .topbar .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-r { background: #ef4444; }
+        .dot-y { background: #eab308; }
+        .dot-g { background: #22c55e; }
+        .topbar h1 { font-size: 13px; font-weight: 400; color: #52525b; letter-spacing: 0.5px; }
+        .topbar .ver { margin-left: auto; font-size: 11px; color: #22c55e; opacity: 0.6; }
+
+        /* ── Main Content ── */
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .main::-webkit-scrollbar { width: 6px; }
+        .main::-webkit-scrollbar-track { background: transparent; }
+        .main::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+
+        /* ── Task Display ── */
+        .task-line {
+            font-size: 14px;
+            margin-bottom: 24px;
+            color: #a1a1aa;
+        }
+        .task-line span { color: #22c55e; }
+
+        /* ── Pipeline Steps ── */
+        .pipeline {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-bottom: 24px;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            background: transparent;
+        }
+        .step.active {
+            background: #18181b;
+        }
+        .step.done {
+            opacity: 0.5;
+        }
+        .step.fail {
+            background: rgba(239, 68, 68, 0.06);
+        }
+
+        .step-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid #27272a;
+            border-top-color: #22c55e;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Check / X icons */
+        .icon-check { color: #22c55e; font-size: 14px; }
+        .icon-fail { color: #ef4444; font-size: 14px; }
+        .icon-waiting { color: #27272a; font-size: 14px; }
+
+        .step-label { color: #a1a1aa; font-weight: 400; }
+        .step.active .step-label { color: #e4e4e7; }
+        .step-detail { margin-left: auto; color: #52525b; font-size: 11px; }
+        .step.active .step-detail { color: #71717a; }
+
+        /* ── Result Card ── */
+        .result-card {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .result-header {
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #27272a;
+        }
+        .result-header.pass { color: #22c55e; background: rgba(34, 197, 94, 0.05); }
+        .result-header.fail { color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+
+        .result-code {
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: #a1a1aa;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .result-error {
+            padding: 16px 20px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ef4444;
+            white-space: pre-wrap;
+            opacity: 0.8;
+        }
+
+        /* ── Stats Bar ── */
+        .stats {
+            display: flex;
+            gap: 24px;
+            padding: 12px 16px;
+            background: #111113;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            animation: fadeIn 0.4s ease;
+        }
+        .stat { display: flex; flex-direction: column; gap: 2px; }
+        .stat-label { font-size: 10px; color: #52525b; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 14px; font-weight: 600; color: #71717a; }
+
+        /* ── Welcome ── */
+        .welcome { color: #27272a; margin-bottom: 24px; font-size: 12px; line-height: 1.6; }
+        .welcome .brand { color: #22c55e; font-size: 20px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .welcome .sub { color: #3f3f46; }
+
+        /* ── Input ── */
+        .input-bar {
+            border-top: 1px solid #1c1c22;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+            background: #09090b;
+        }
+        .prompt { color: #22c55e; font-weight: 700; font-size: 15px; }
+        .input-bar input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #e4e4e7;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            caret-color: #22c55e;
+        }
+        .input-bar input::placeholder { color: #3f3f46; }
+        .input-bar button {
+            background: #22c55e;
+            color: #09090b;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            letter-spacing: 0.5px;
+        }
+        .input-bar button:hover { opacity: 0.85; }
+        .input-bar button:disabled { background: #27272a; color: #52525b; cursor: not-allowed; }
+
+                /* -- Test Progress -- */
+        .test-progress {
+            margin: 0 16px 0 48px;
+            padding: 0;
+        }
+        .test-bar-wrap {
+            background: #18181b;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 6px 0 4px 0;
+            height: 6px;
+        }
+        .test-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+            border-radius: 6px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .test-bar.has-fail {
+            background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+        }
+        .test-label {
+            font-size: 10px;
+            color: #52525b;
+            display: flex;
+            justify-content: space-between;
+        }
+        .test-name {
+            font-size: 11px;
+            color: #3f3f46;
+            margin-top: 2px;
+        }
+        .test-name .pass-mark { color: #22c55e; }
+        .test-name .fail-mark { color: #ef4444; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="dots">
+            <div class="dot dot-r"></div>
+            <div class="dot dot-y"></div>
+            <div class="dot dot-g"></div>
+        </div>
+        <h1>AutoDev</h1>
+        <span class="ver">v1.0</span>
+    </div>
+
+    <div class="main" id="main">
+        <div class="welcome" id="welcome">
+            <div class="brand">AutoDev</div>
+            <div class="sub">Autonomous coding agent. Describe a task and watch it build.</div>
+            <div class="sub" style="margin-top:4px; color:#27272a;">LangGraph &middot; Gemini 3.x &middot; Pinecone RAG &middot; Security Scanner</div>
+        </div>
+    </div>
+
+    <div class="input-bar">
+        <span class="prompt">$</span>
+        <input type="text" id="taskInput" placeholder="Describe your coding task..." autofocus />
+        <button id="runBtn" onclick="runTask()">RUN</button>
+    </div>
+
+    <script>
+    const main = document.getElementById("main");
+    const input = document.getElementById("taskInput");
+    const btn = document.getElementById("runBtn");
+
+    input.addEventListener("keydown", e => { if (e.key === "Enter" && !btn.disabled) runTask(); });
+
+    // Phase definitions
+    const PHASES = ["rag", "coder", "tester", "scanner", "executor"];
+    const PHASE_LABELS = {
+        rag: "Retrieving docs",
+        coder: "Generating code",
+        tester: "Writing tests",
+        scanner: "Security scan",
+        executor: "Running tests"
+    };
+
+    let pipelineEl = null;
+    let stepEls = {};
+
+    function createRun(task) {
+        // Remove welcome
+        const w = document.getElementById("welcome");
+        if (w) w.remove();
+
+        // Task line
+        const tl = document.createElement("div");
+        tl.className = "task-line";
+        tl.innerHTML = `<span>$</span> ${escapeHtml(task)}`;
+        main.appendChild(tl);
+
+        // Pipeline
+        pipelineEl = document.createElement("div");
+        pipelineEl.className = "pipeline";
+        stepEls = {};
+
+        PHASES.forEach(id => {
+            const step = document.createElement("div");
+            step.className = "step";
+            step.id = "step-" + id;
+            step.innerHTML = `
+                <div class="step-icon"><span class="icon-waiting">&#x25CB;</span></div>
+                <span class="step-label">${PHASE_LABELS[id]}</span>
+                <span class="step-detail"></span>
+            `;
+            pipelineEl.appendChild(step);
+            stepEls[id] = step;
+        });
+
+        main.appendChild(pipelineEl);
+        testProgressEl = null; testBarEl = null; testNamesEl = null; hasFail = false;
+        scrollBottom();
+    }
+
+    function setStepStatus(phase, status, detail) {
+        const step = stepEls[phase];
+        if (!step) return;
+
+        const iconEl = step.querySelector(".step-icon");
+        const detailEl = step.querySelector(".step-detail");
+
+        step.className = "step";
+
+        if (status === "running") {
+            step.classList.add("active");
+            iconEl.innerHTML = '<div class="spinner"></div>';
+        } else if (status === "done") {
+            step.classList.add("done");
+            iconEl.innerHTML = '<span class="icon-check">&#x2713;</span>';
+        } else if (status === "fail") {
+            step.classList.add("fail");
+            iconEl.innerHTML = '<span class="icon-fail">&#x2717;</span>';
+        }
+
+        if (detail) detailEl.textContent = detail;
+        scrollBottom();
+    }
+
+    function showResult(data) {
+        const card = document.createElement("div");
+        card.className = "result-card";
+
+        if (data.status === "pass") {
+            card.innerHTML = `
+                <div class="result-header pass">Build Successful</div>
+                <div class="result-code">${escapeHtml(data.code)}</div>
+            `;
+        } else if (data.status === "escalate") {
+            card.innerHTML = `
+                <div class="result-header fail">Escalation Required</div>
+                <div class="result-error">${escapeHtml(data.error || "")}</div>
+                <div class="result-code">${escapeHtml(data.code || "")}</div>
+            `;
+        } else if (data.status === "security_fail") {
+            card.innerHTML = `
+                <div class="result-header fail">Security Block</div>
+                <div class="result-error">${escapeHtml(data.error || "")}</div>
+            `;
+        }
+
+        main.appendChild(card);
+        scrollBottom();
+    }
+
+    function showObs(data) {
+        const totalTime = data.coder_time + data.tester_time;
+        const totalTokens = data.coder_tokens + data.tester_tokens;
+
+        const el = document.createElement("div");
+        el.className = "stats";
+        el.innerHTML = `
+            <div class="stat"><span class="stat-label">Coder</span><span class="stat-value">${data.coder_time}s &middot; ${data.coder_tokens} tok</span></div>
+            <div class="stat"><span class="stat-label">Tester</span><span class="stat-value">${data.tester_time}s &middot; ${data.tester_tokens} tok</span></div>
+            <div class="stat"><span class="stat-label">Total</span><span class="stat-value">${totalTime}s &middot; ${totalTokens} tok</span></div>
+            <div class="stat"><span class="stat-label">Retries</span><span class="stat-value">${data.retries}</span></div>
+        `;
+        main.appendChild(el);
+        scrollBottom();
+    }
+
+    function runTask() {
+        const task = input.value.trim();
+        if (!task) return;
+
+        createRun(task);
+        input.value = "";
+        btn.disabled = true;
+        input.disabled = true;
+
+        const source = new EventSource("/run?task=" + encodeURIComponent(task));
+
+        source.onmessage = (event) => {
+            const raw = event.data;
+            if (raw === "[DONE]") {
+                source.close();
+                btn.disabled = false;
+                input.disabled = false;
+                input.focus();
+                return;
+            }
+
+            try {
+                const data = JSON.parse(raw);
+
+                if (data.type === "phase") {
+                    setStepStatus(data.phase, data.status, data.detail);
+                } else if (data.type === "result") {
+                    showResult(data);
+                } else if (data.type === "obs") {
+                    showObs(data);
+                } else if (data.type === "test") {
+                    showTestProgress(data);
+                } else if (data.type === "error") {
+                    const el = document.createElement("div");
+                    el.style.cssText = "color:#ef4444; padding:12px 0; font-size:13px;";
+                    el.textContent = "Error: " + data.message;
+                    main.appendChild(el);
+                }
+            } catch(e) {
+                // Ignore unparseable lines
+            }
+            scrollBottom();
+        };
+
+        source.onerror = () => {
+            source.close();
+            btn.disabled = false;
+            input.disabled = false;
+        };
+    }
+
+    let testProgressEl = null;
+    let testBarEl = null;
+    let testNamesEl = null;
+    let hasFail = false;
+
+    function showTestProgress(data) {
+        if (!testProgressEl) {
+            testProgressEl = document.createElement("div");
+            testProgressEl.className = "test-progress";
+            testProgressEl.innerHTML = `
+                <div class="test-label"><span>Tests</span><span class="test-pct">0%</span></div>
+                <div class="test-bar-wrap"><div class="test-bar" id="testBar"></div></div>
+                <div class="test-name" id="testNames"></div>
+            `;
+            main.appendChild(testProgressEl);
+            testBarEl = document.getElementById("testBar");
+            testNamesEl = document.getElementById("testNames");
+        }
+
+        testBarEl.style.width = data.pct + "%";
+        testProgressEl.querySelector(".test-pct").textContent = data.pct + "%";
+
+        if (!data.passed) hasFail = true;
+        if (hasFail) testBarEl.classList.add("has-fail");
+
+        const mark = data.passed
+            ? `<span class="pass-mark">&#x2713;</span>`
+            : `<span class="fail-mark">&#x2717;</span>`;
+        testNamesEl.innerHTML = `${mark} ${data.name}`;
+
+        scrollBottom();
+    }
+
+    function escapeHtml(s) {
+        const d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function scrollBottom() {
+        main.scrollTop = main.scrollHeight;
+    }
+    </script>
+</body>
+</html>
