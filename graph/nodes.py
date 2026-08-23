@@ -1,11 +1,12 @@
 import os
+import time
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from graph.state import AgentState
 from tools.executor import execute_code_tests
 from tools.scanner import scan_code
-import time
+from rag.retriever import retrieve
 
 load_dotenv()
 
@@ -62,9 +63,19 @@ def coder_node(state: AgentState) -> dict:
     if state['error']: # this is for retry
         error_context = f"\nYour previous code FAILED. Fix the code based on the ERROR:\n{state['error']}\n. Preserve original task requirements"
 
+    rag_context = retrieve(state["task"])
+    if rag_context:
+        print(f"\n[RAG] Retrieved {len(rag_context.split('---'))} chunks:")
+        print(rag_context[:300] + "...") 
+    else:
+        print("[RAG] No relevant docs found.")
+
     system_msg = load_prompt("coder")
 
-    human_msg = f"Task:\n{state['task']}\n{error_context}"
+    if rag_context:
+        human_msg = f"Task:\n{state['task']}\n{error_context}\n\nRelevant Python Documentation:\n{rag_context}"
+    else: 
+        human_msg = f"Task:\n{state['task']}\n{error_context}"
     
 
     messages = [
