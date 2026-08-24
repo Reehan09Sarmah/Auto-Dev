@@ -549,9 +549,6 @@
         let progressAreaEl = null;
         let activityEl = null;
         let subtaskListEl = null;
-        let pieSliceEl = null;
-        let piePctEl = null;
-        let codeStore = [];   // stores code strings for copy button
 
         function createRun(task) {
             const w = document.getElementById("welcome");
@@ -561,7 +558,6 @@
             totalSteps = 0; doneSteps = 0;
             subtaskNames = []; completedSubtasks = 0;
             progressAreaEl = null; activityEl = null; subtaskListEl = null;
-            pieSliceEl = null; piePctEl = null;
 
             const tl = document.createElement("div");
             tl.className = "task-line";
@@ -593,26 +589,28 @@
         `;
             main.appendChild(progressAreaEl);
 
-            activityEl = progressAreaEl.querySelector("#currentActivity");
-            subtaskListEl = progressAreaEl.querySelector("#subtaskList");
-            pieSliceEl = progressAreaEl.querySelector("#pieSlice");
-            piePctEl = progressAreaEl.querySelector("#piePct");
+            activityEl = document.getElementById("currentActivity");
+            subtaskListEl = document.getElementById("subtaskList");
             scrollBottom();
         }
 
         function updatePie() {
-            if (totalSteps === 0 || !pieSliceEl || !piePctEl) return;
+            if (totalSteps === 0) return;
             const pct = Math.min(100, Math.round((doneSteps / totalSteps) * 100));
             const filled = (doneSteps / totalSteps) * PIE_CIRC;
 
-            pieSliceEl.setAttribute("stroke-dasharray", `${filled} ${PIE_CIRC}`);
-            piePctEl.textContent = pct + "%";
+            const slice = document.getElementById("pieSlice");
+            const pctEl = document.getElementById("piePct");
+            if (!slice || !pctEl) return;
+
+            slice.setAttribute("stroke-dasharray", `${filled} ${PIE_CIRC}`);
+            pctEl.textContent = pct + "%";
 
             // Color: pale green → bright green as we progress
-            if (pct >= 100) pieSliceEl.setAttribute("stroke", "#22c55e");
-            else if (pct >= 66) pieSliceEl.setAttribute("stroke", "#4ade80");
-            else if (pct >= 33) pieSliceEl.setAttribute("stroke", "#86efac");
-            else pieSliceEl.setAttribute("stroke", "#bbf7d0");
+            if (pct >= 100) slice.setAttribute("stroke", "#22c55e");
+            else if (pct >= 66) slice.setAttribute("stroke", "#4ade80");
+            else if (pct >= 33) slice.setAttribute("stroke", "#86efac");
+            else slice.setAttribute("stroke", "#bbf7d0");
         }
 
         function setActivity(text, done = false) {
@@ -654,26 +652,13 @@
 
             if (data.status === "pass") {
                 const codeText = data.code || "";
-                const codeIdx = codeStore.length;
-                codeStore.push(codeText);
                 card.innerHTML = `
                 <div class="result-header pass">
                     <span>Build Successful</span>
-                    <button class="copy-btn" data-code-idx="${codeIdx}">Copy</button>
+                    <button class="copy-btn" onclick="copyCode(this, ${JSON.stringify(codeText).replace(/\//g, '\\/')})">Copy</button>
                 </div>
                 <div class="result-code">${escapeHtml(codeText)}</div>
             `;
-                card.querySelector(".copy-btn").addEventListener("click", function() {
-                    const code = codeStore[this.dataset.codeIdx];
-                    navigator.clipboard.writeText(code).then(() => {
-                        this.textContent = "Copied!";
-                        this.classList.add("copied");
-                        setTimeout(() => {
-                            this.textContent = "Copy";
-                            this.classList.remove("copied");
-                        }, 2000);
-                    });
-                });
             } else if (data.status === "escalate") {
                 card.innerHTML = `
                 <div class="result-header fail"><span>Escalation Required</span></div>
@@ -691,7 +676,16 @@
             scrollBottom();
         }
 
-
+        function copyCode(btn, code) {
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = "Copied!";
+                btn.classList.add("copied");
+                setTimeout(() => {
+                    btn.textContent = "Copy";
+                    btn.classList.remove("copied");
+                }, 2000);
+            });
+        }
 
         function showObs(data) {
             const totalTime = data.coder_time + data.tester_time;

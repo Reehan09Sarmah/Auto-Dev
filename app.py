@@ -11,6 +11,7 @@ import re
 from flask import Flask, render_template, request, Response
 from dotenv import load_dotenv
 from graph.graph import build_graph
+import graph.nodes as nodes
 
 load_dotenv()
 
@@ -48,13 +49,34 @@ class FilteredWriter(io.TextIOBase):
     def _classify(self, line):
         if not line:
             return
+        # Planner starting
+        if "PLANNER AGENT RUNNING" in line:
+            self.q.put(json.dumps({"type": "phase", "phase": "planner", "status": "running", "detail": "Breaking down task..."}))
+            
+        # Planner: capture subtask names JSON (emitted right before "Generated X subtasks")
+        elif line.startswith("SUBTASKS_JSON:"):
+            try:
+                names = json.loads(line[len("SUBTASKS_JSON:"):])
+                self.q.put(json.dumps({"type": "plan_ready", "total": len(names), "names": names}))
+            except Exception:
+                pass
+
+        # Planner finished
+        elif line.startswith("Generated") and "subtasks in" in line:
+            self.q.put(json.dumps({"type": "phase", "phase": "planner", "status": "done", "detail": line}))
+
         # Coder starting
-        if line.startswith("CODER AGENT RUNNING"):
-            attempt = "1"
-            m = re.search(r"Attempt:\s*(\d+)", line)
+        elif "CODER AGENT RUNNING" in line:
+            detail = "Generating code..."
+            # Check for subtask parsing e.g. (Subtask 1/3)
+            m = re.search(r"\(Subtask\s+([^\)]+)\)", line)
             if m:
-                attempt = m.group(1)
-            self.q.put(json.dumps({"type": "phase", "phase": "coder", "status": "running", "detail": f"Attempt {attempt}"}))
+                detail = f"Subtask {m.group(1)}"
+            else:
+                m = re.search(r"Attempt:\s*(\d+)", line)
+                if m:
+                    detail = f"Attempt {m.group(1)}"
+            self.q.put(json.dumps({"type": "phase", "phase": "coder", "status": "running", "detail": detail}))
 
         # RAG retrieval
         elif line.startswith("[RAG] Retrieved"):
@@ -68,6 +90,7 @@ class FilteredWriter(io.TextIOBase):
         # Coder finished generating
         elif line.startswith("Generated") and "lines of code" in line:
             self.q.put(json.dumps({"type": "phase", "phase": "coder", "status": "done", "detail": line}))
+            self.q.put(json.dumps({"type": "agent_step"}))
 
         # Tester starting
         elif "TESTER AGENT RUNNING" in line:
@@ -76,6 +99,7 @@ class FilteredWriter(io.TextIOBase):
         # Tester finished generating
         elif line.startswith("Generated") and "lines of tests" in line:
             self.q.put(json.dumps({"type": "phase", "phase": "tester", "status": "done", "detail": line}))
+            self.q.put(json.dumps({"type": "agent_step"}))
 
         # Scanner
         elif "Scanner Node Running" in line:
@@ -83,13 +107,17 @@ class FilteredWriter(io.TextIOBase):
 
         elif "Code passed security scan" in line:
             self.q.put(json.dumps({"type": "phase", "phase": "scanner", "status": "done", "detail": "Passed security scan"}))
+            self.q.put(json.dumps({"type": "agent_step"}))
+            self.q.put(json.dumps({"type": "phase", "phase": "executor", "status": "running", "detail": "Starting tests..."}))
 
         elif "SECURITY ISSUES FOUND" in line:
             self.q.put(json.dumps({"type": "phase", "phase": "scanner", "status": "fail", "detail": "Security issues detected"}))
 
         # Executor results
-        elif "ALL TEST PASSED" in line:
+        elif "BUILD SUCCESSFUL" in line:
             self.q.put(json.dumps({"type": "phase", "phase": "executor", "status": "done", "detail": "All tests passed"}))
+            self.q.put(json.dumps({"type": "agent_step"}))
+            self.q.put(json.dumps({"type": "subtask_done"}))
 
         elif line.startswith("Test FAILED"):
             self.q.put(json.dumps({"type": "phase", "phase": "executor", "status": "fail", "detail": line}))
@@ -130,6 +158,7 @@ def run_agent(task, q):
     sys.stdout = FilteredWriter(q, original_stdout)
 
     try:
+        nodes.CANCEL_RUN = False
         start_state = {
             "task": task,
             "code": "",
@@ -138,17 +167,18 @@ def run_agent(task, q):
             "error": "",
             "retry_count": 0,
             "status": "running",
-            "observe": {}
+            "observe": {},
+            "subtasks": [],
+            "current_subtask_index": 0,
+            "completed_code": ""
         }
-
-        # Signal that execution has started
-        q.put(json.dumps({"type": "phase", "phase": "executor", "status": "running", "detail": "Running tests..."}))
 
         end_state = graph.invoke(start_state)
 
         # Send final status
         if end_state["status"] == "pass":
-            q.put(json.dumps({"type": "result", "status": "pass", "code": end_state["code"]}))
+            final_code = end_state.get("completed_code", "").strip() or end_state.get("code", "")
+            q.put(json.dumps({"type": "result", "status": "pass", "code": final_code}))
         elif end_state["status"] == "escalate":
             q.put(json.dumps({"type": "result", "status": "escalate", "code": end_state.get("code", ""), "error": end_state.get("error", "")}))
         elif end_state["status"] == "security_fail":
@@ -171,6 +201,11 @@ def run_agent(task, q):
         sys.stdout = original_stdout
         q.put("[DONE]")
 
+
+@app.route("/stop", methods=["POST"])
+def stop_run():
+    nodes.CANCEL_RUN = True
+    return {"status": "ok"}
 
 @app.route("/run")
 def run():

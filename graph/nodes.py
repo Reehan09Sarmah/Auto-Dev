@@ -1,5 +1,6 @@
-import os
+﻿import os
 import time
+import json
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -8,13 +9,20 @@ from tools.executor import execute_code_tests
 from tools.scanner import scan_code
 from rag.retriever import retrieve
 
+CANCEL_RUN = False
+
 load_dotenv()
 
 
-MODELS = ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]
+# Role-specific model chains
+PLANNER_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"]
+CODER_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash"]
+TESTER_MODELS = ["gemini-3.5-flash-lite"]
 
-def call_llm(messages):
-    for model_name in MODELS:
+def call_llm(messages, models):
+    global CANCEL_RUN
+    if CANCEL_RUN: raise InterruptedError("Cancelled by user")
+    for model_name in models:
         try:
             llm = ChatGoogleGenerativeAI(
                 model=model_name,
@@ -54,28 +62,75 @@ def load_prompt(agent_name: str) -> str:
         return f.read().strip()
 
 
+# Planner
+def planner_node(state: AgentState) -> dict:
+    global CANCEL_RUN
+    if CANCEL_RUN: raise InterruptedError("Cancelled by user")
+    print("--- PLANNER AGENT RUNNING ---")
+
+    system_msg = load_prompt("planner")
+    human_msg = f"Task to break down:\n{state['task']}"
+
+    messages = [
+        SystemMessage(content=system_msg),
+        HumanMessage(content=human_msg)
+    ]
+
+    start_time = time.time()
+    response = call_llm(messages, PLANNER_MODELS)
+    duration = time.time() - start_time
+
+    try:
+        raw_text = convtorawdata(response.content)
+        clean_text = raw_text.replace("```json", "").replace("```", "").strip()
+        subtasks = json.loads(clean_text)
+    except Exception as e:
+        print(f"Planner failed to output JSON. Falling back to single task. Error: {e}")
+        subtasks = [state["task"]]
+
+    print(f"SUBTASKS_JSON:{json.dumps(subtasks)}")
+    print(f"Generated {len(subtasks)} subtasks in {duration:1f}s")
+    return{
+        "subtasks": subtasks,
+        "current_subtask_index": 0,
+        "completed_code": "",
+        "status": "running"
+    }
+
+
+
 
 # Coder
 def coder_node(state: AgentState) -> dict:
-    print(f"CODER AGENT RUNNING --- Attempt: {state['retry_count'] + 1} ---")
-
+    global CANCEL_RUN
+    if CANCEL_RUN: raise InterruptedError("Cancelled by user")
+    print(f"--- CODER AGENT RUNNING --")
     error_context = ""
-    if state['error']: # this is for retry
+    if state['error']: 
         error_context = f"\nYour previous code FAILED. Fix the code based on the ERROR:\n{state['error']}\n. Preserve original task requirements"
 
-    rag_context = retrieve(state["task"])
-    if rag_context:
-        print(f"\n[RAG] Retrieved {len(rag_context.split('---'))} chunks:")
-        print(rag_context[:300] + "...") 
-    else:
-        print("[RAG] No relevant docs found.")
 
     system_msg = load_prompt("coder")
+    subtasks = state.get("subtasks", [])
+    current_subtask_index = state.get("current_subtask_index", 0)
 
+    if not subtasks:
+        current_subtask = state["task"]
+    else:
+        current_subtask = subtasks[current_subtask_index]
+
+    print(f"--- CODER AGENT RUNNING (Subtask {current_subtask_index + 1}/{max(1, len(subtasks))}) ---")
+
+
+    rag_context = retrieve(current_subtask)
+    prev_code = state.get("completed_code", "")
+    code_context = f"\nHere is the codebase so far:\n```python\n{prev_code}\n```\nImplement the new subtask and RETURN THE ENTIRE COMPLETE PYTHON SCRIPT including the old code and your new additions." if prev_code else ""
+
+
+
+    human_msg =  f"Subtask:\n{current_subtask}{code_context}\nError: {error_context}"
     if rag_context:
-        human_msg = f"Task:\n{state['task']}\n{error_context}\n\nRelevant Python Documentation:\n{rag_context}"
-    else: 
-        human_msg = f"Task:\n{state['task']}\n{error_context}"
+        human_msg += f"\n\nRelevant Docs:\n{rag_context}"
     
 
     messages = [
@@ -84,7 +139,7 @@ def coder_node(state: AgentState) -> dict:
     ]
 
     start = time.time()
-    response = call_llm(messages)
+    response = call_llm(messages, CODER_MODELS)
     latency = round(time.time() - start)
 
     tokens = response.usage_metadata.get("total_tokens", 0) if hasattr(response, 'usage_metadata') and response.usage_metadata else 0
@@ -102,6 +157,8 @@ def coder_node(state: AgentState) -> dict:
 
 # Tester
 def tester_node(state: AgentState) -> dict:
+    global CANCEL_RUN
+    if CANCEL_RUN: raise InterruptedError("Cancelled by user")
     print(f"--- TESTER AGENT RUNNING ---")
 
 
@@ -116,7 +173,7 @@ def tester_node(state: AgentState) -> dict:
     ]
 
     start = time.time()
-    response = call_llm(messages)
+    response = call_llm(messages, TESTER_MODELS)
     latency = round(time.time() - start)
 
     tokens = response.usage_metadata.get("total_tokens", 0) if hasattr(response, 'usage_metadata') and response.usage_metadata else 0
@@ -133,6 +190,8 @@ def tester_node(state: AgentState) -> dict:
 
 # Scanner Node
 def scanner_node(state:AgentState) -> dict:
+    global CANCEL_RUN
+    if CANCEL_RUN: raise InterruptedError("Cancelled by user")
     print("--- Scanner Node Running ---")
 
     result = scan_code(state['code'])
@@ -164,16 +223,25 @@ def scanner_node(state:AgentState) -> dict:
 
 # Executor
 def executor_node(state: AgentState) -> dict:
+    global CANCEL_RUN
+    if CANCEL_RUN: raise InterruptedError("Cancelled by user")
 
     result = execute_code_tests(state['code'], state['tests'])
     print(result['output'])
 
     if result['passed']:
-        print("ALL TEST PASSED")
+        print("BUILD SUCCESSFUL")
+
+        new_completed_code = state["code"]
+        new_index = state.get("current_subtask_index", 0) + 1
+
         return {
-            "test_results": result['output'],
+            "test_results": result,
             "error": "",
-            "status": "pass"
+            "status": "pass",
+            "completed_code": new_completed_code,
+            "current_subtask_index": new_index,
+            "retry_count": 0
         }
     else:
         new_count = state['retry_count'] + 1

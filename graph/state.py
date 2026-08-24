@@ -10,6 +10,9 @@ class AgentState(TypedDict):
     retry_count: int
     status: str
     observe: Annotated[dict, operator.ior]
+    subtasks: list[str]
+    current_subtask_index: int
+    completed_code: str
 
 
 
